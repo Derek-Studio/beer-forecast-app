@@ -89,11 +89,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   headline: {
-    fontSize: 58,
-    fontWeight: "200",
+    fontSize: 38,
+    fontWeight: "300",
     color: "#fff",
     marginBottom: 4,
-    letterSpacing: -1,
+    letterSpacing: -0.5,
   },
   dealRow: {
     fontSize: 16,

@@ -5,8 +5,75 @@ import React, { useEffect, useState } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import { useNearbyPubs } from "../hooks/usePubs";
 
-const MapView = Platform.OS !== "web" ? require("react-native-maps").default : null;
-const Marker = Platform.OS !== "web" ? require("react-native-maps").Marker : null;
+// Native map (react-native-maps)
+const NativeMapView = Platform.OS !== "web" ? require("react-native-maps").default : null;
+const NativeMarker = Platform.OS !== "web" ? require("react-native-maps").Marker : null;
+
+// Web map (react-leaflet) — loaded only on web to avoid SSR issues
+function WebMap({ pubs, center }: { pubs: any[]; center: [number, number] }) {
+  const [ready, setReady] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Inject Leaflet CSS
+    const id = "leaflet-css";
+    if (!document.getElementById(id)) {
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+    setReady(true);
+  }, []);
+
+  if (!ready) return null;
+
+  const { MapContainer, TileLayer, Marker, Popup } = require("react-leaflet");
+  const L = require("leaflet");
+
+  // Fix default marker icon (leaflet webpack issue)
+  const icon = L.icon({
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+  });
+
+  return (
+    <MapContainer
+      center={center}
+      zoom={14}
+      style={{ flex: 1, height: "100%", width: "100%" }}
+    >
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      />
+      {pubs.map((pub: any) => (
+        <Marker key={pub.id} position={[pub.lat, pub.lng]} icon={icon}>
+          <Popup>
+            <strong>{pub.name}</strong>
+            <br />
+            {pub.address}
+            <br />
+            <a
+              href="#"
+              onClick={(e: any) => {
+                e.preventDefault();
+                router.push(`/pub/${pub.id}`);
+              }}
+            >
+              View deals →
+            </a>
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}
 
 export default function MapScreen() {
   const router = useRouter();
@@ -24,47 +91,45 @@ export default function MapScreen() {
 
   const { data: pubs } = useNearbyPubs(coords?.lat ?? null, coords?.lng ?? null);
 
+  // Default to central London if no GPS
+  const center: [number, number] = coords
+    ? [coords.lat, coords.lng]
+    : [51.5074, -0.1278];
+
   if (Platform.OS === "web") {
     return (
-      <LinearGradient colors={["#0D1B2A", "#1C3F6E"]} style={styles.gradient}>
-        <View style={styles.center}>
-          <Text style={styles.mapEmoji}>🗺️</Text>
-          <Text style={styles.webText}>Map view not available on web</Text>
-          <Text style={styles.webSubtext}>Check out the pubs below</Text>
-          {pubs?.map((pub) => (
-            <Text
-              key={pub.id}
-              style={styles.pubLink}
-              onPress={() => router.push(`/pub/${pub.id}`)}
-            >
-              📍 {pub.name}
-            </Text>
-          ))}
-        </View>
-      </LinearGradient>
+      <View style={styles.container}>
+        <WebMap pubs={pubs ?? []} center={center} />
+      </View>
     );
   }
 
-  const region = coords
-    ? { latitude: coords.lat, longitude: coords.lng, latitudeDelta: 0.04, longitudeDelta: 0.04 }
-    : { latitude: 51.5074, longitude: -0.1278, latitudeDelta: 0.1, longitudeDelta: 0.1 };
+  // Native
+  const region = {
+    latitude: center[0],
+    longitude: center[1],
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
+  };
 
   return (
-    <View style={styles.container}>
-      {MapView && (
-        <MapView style={styles.map} region={region} showsUserLocation>
-          {pubs?.map((pub) => (
-            <Marker
-              key={pub.id}
-              coordinate={{ latitude: pub.lat, longitude: pub.lng }}
-              title={pub.name}
-              description={pub.address}
-              onCalloutPress={() => router.push(`/pub/${pub.id}`)}
-            />
-          ))}
-        </MapView>
-      )}
-    </View>
+    <LinearGradient colors={["#0D1B2A", "#1C3F6E"]} style={styles.gradient}>
+      <View style={styles.container}>
+        {NativeMapView && (
+          <NativeMapView style={styles.map} region={region} showsUserLocation>
+            {pubs?.map((pub: any) => (
+              <NativeMarker
+                key={pub.id}
+                coordinate={{ latitude: pub.lat, longitude: pub.lng }}
+                title={pub.name}
+                description={pub.address}
+                onCalloutPress={() => router.push(`/pub/${pub.id}`)}
+              />
+            ))}
+          </NativeMapView>
+        )}
+      </View>
+    </LinearGradient>
   );
 }
 
@@ -72,19 +137,4 @@ const styles = StyleSheet.create({
   gradient: { flex: 1 },
   container: { flex: 1 },
   map: { flex: 1 },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-    padding: 24,
-  },
-  mapEmoji: { fontSize: 48, marginBottom: 8 },
-  webText: { fontSize: 16, color: "#fff", fontWeight: "500" },
-  webSubtext: { fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 20 },
-  pubLink: {
-    fontSize: 15,
-    color: "#F59E0B",
-    paddingVertical: 6,
-  },
 });
