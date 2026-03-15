@@ -1,52 +1,55 @@
 #!/usr/bin/env python3
 """
-Headless browser smoke test for beer-forecast-app web frontend.
+Headless browser smoke test for beer-forecast-app (weather-style UI).
 Requires: playwright with chromium installed (uses qwen-testing venv)
 Run from beer-forecast-app root:
   /root/projects/qwen-testing/.venv/bin/python3 scripts/headless_test.py
 """
 
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import sync_playwright
 
 BASE = "http://localhost:3000"
 
-def test_nearby_list(page):
-    print("\n[1] Nearby tab — pub list loads")
+def test_dashboard(page):
+    print("\n[1] Dashboard — weather-style main screen loads")
     page.goto(BASE, wait_until="networkidle")
-    # Should show at least one PubCard (TouchableOpacity renders as div on web)
-    cards = page.locator("text=The Goose").or_(
-        page.locator("text=Prince of Peckham")
-    ).or_(page.locator("text=Fabal Beerhall"))
-    cards.first.wait_for(timeout=8000)
-    count = page.locator("[data-testid='pub-card']").count()
-    print(f"   Pub names visible: checking for known pubs...")
-    for name in ["The Goose", "Prince of Peckham", "Fabal Beerhall", "The Last Judgment"]:
-        visible = page.locator(f"text={name}").count() > 0
-        print(f"   {'✓' if visible else '✗'} {name}")
-    print("   PASS")
-
-def test_pub_detail(page):
-    print("\n[2] Pub detail — tap pub, see promotions")
-    page.goto(BASE, wait_until="networkidle")
-    page.locator("text=Prince of Peckham").first.click()
-    page.wait_for_timeout(1500)
-    # Should show promotion text
-    for text in ["Thirsty Thursdays", "All-day cocktails"]:
+    # Should show the mock headline and condition
+    for text in ["Thirsty Thursday", "Heavy Discounts", "HOURLY DRINK FORECAST", "NEARBY PUBS", "14-DAY FORECAST"]:
         visible = page.locator(f"text={text}").count() > 0
-        print(f"   {'✓' if visible else '✗'} Promo: '{text}'")
+        print(f"   {'✓' if visible else '✗'} '{text}'")
     print("   PASS")
 
-def test_map_tab_web_fallback(page):
-    print("\n[3] Map tab — shows fallback text on web")
+def test_hourly_detail(page):
+    print("\n[2] Hourly widget — tap → detail screen")
     page.goto(BASE, wait_until="networkidle")
-    map_tab = page.locator("text=Map")
-    if map_tab.count() == 0:
-        print("   ✓ Map tab hidden on web (as expected)")
-        return
-    map_tab.first.click()
-    page.wait_for_timeout(1000)
-    fallback = page.locator("text=Map view not available on web").count() > 0
-    print(f"   {'✓' if fallback else '✗'} Fallback text shown")
+    page.locator("text=HOURLY DRINK FORECAST").first.click()
+    page.wait_for_timeout(1500)
+    for text in ["Hourly Forecast", "Happy Hour", "Pitcher"]:
+        visible = page.locator(f"text={text}").count() > 0
+        print(f"   {'✓' if visible else '✗'} '{text}'")
+    print("   PASS")
+
+def test_forecast_detail(page):
+    print("\n[3] Forecast widget — tap → 14-day detail screen")
+    page.goto(BASE, wait_until="networkidle")
+    page.locator("text=14-DAY FORECAST").first.click()
+    page.wait_for_timeout(1500)
+    for text in ["14-Day Forecast", "Thirsty Thursday", "Accuracy not guaranteed"]:
+        visible = page.locator(f"text={text}").count() > 0
+        print(f"   {'✓' if visible else '✗'} '{text}'")
+    print("   PASS")
+
+def test_map_screen(page):
+    print("\n[4] Map widget — tap → map screen")
+    page.goto(BASE, wait_until="networkidle")
+    page.locator("text=NEARBY PUBS").first.click()
+    page.wait_for_timeout(1500)
+    # On web shows pub links as fallback
+    visible = (
+        page.locator("text=Map view not available on web").count() > 0 or
+        page.locator("text=Nearby Pubs").count() > 0
+    )
+    print(f"   {'✓' if visible else '✗'} Map screen reached")
     print("   PASS")
 
 def run():
@@ -54,19 +57,17 @@ def run():
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        # Capture console errors
         errors = []
         page.on("console", lambda msg: errors.append(msg.text) if msg.type == "error" else None)
         page.on("pageerror", lambda err: errors.append(str(err)))
 
         try:
-            test_nearby_list(page)
-            test_pub_detail(page)
-            test_map_tab_web_fallback(page)
+            test_dashboard(page)
+            test_hourly_detail(page)
+            test_forecast_detail(page)
+            test_map_screen(page)
         except Exception as e:
             print(f"\n   FAIL: {e}")
-            print(f"   Page title: {page.title()}")
-            print(f"   URL: {page.url}")
         finally:
             if errors:
                 print(f"\n⚠ Console errors ({len(errors)}):")

@@ -1,42 +1,25 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Tabs } from "expo-router";
-import { Platform } from "react-native";
+import { Stack } from "expo-router";
 
 const queryClient = new QueryClient();
 
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Tabs
+      <Stack
         screenOptions={{
-          tabBarActiveTintColor: "#F59E0B",
-          headerStyle: { backgroundColor: "#1a1a1a" },
+          headerStyle: { backgroundColor: "#0D1B2A" },
           headerTintColor: "#fff",
+          headerBackTitle: "Back",
+          contentStyle: { backgroundColor: "#0D1B2A" },
         }}
       >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: "Nearby",
-            tabBarLabel: "Nearby",
-          }}
-        />
-        <Tabs.Screen
-          name="map"
-          options={{
-            title: "Map",
-            tabBarLabel: "Map",
-            // Hide Map tab on web — react-native-maps doesn't work on web
-            href: Platform.OS === "web" ? null : "/map",
-          }}
-        />
-        <Tabs.Screen
-          name="pub/[id]"
-          options={{
-            href: null, // Never show this in the tab bar
-          }}
-        />
-      </Tabs>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="hourly" options={{ title: "Hourly Forecast" }} />
+        <Stack.Screen name="forecast" options={{ title: "14-Day Forecast" }} />
+        <Stack.Screen name="map" options={{ title: "Nearby Pubs" }} />
+        <Stack.Screen name="pub/[id]" options={{ title: "" }} />
+      </Stack>
     </QueryClientProvider>
   );
 }
