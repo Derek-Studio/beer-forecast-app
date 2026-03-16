@@ -6,9 +6,10 @@ const DAYS = ["All", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 type Props = {
   selected: number | null; // null = All, 0=Mon...6=Sun
   onChange: (day: number | null) => void;
+  rightSlot?: React.ReactNode;
 };
 
-export default function DayFilter({ selected, onChange }: Props) {
+export default function DayFilter({ selected, onChange, rightSlot }: Props) {
   return (
     <View style={styles.strip}>
       <ScrollView
@@ -32,6 +33,8 @@ export default function DayFilter({ selected, onChange }: Props) {
             </TouchableOpacity>
           );
         })}
+        {rightSlot && <View style={styles.spacer} />}
+        {rightSlot}
       </ScrollView>
     </View>
   );
@@ -49,6 +52,11 @@ const styles = StyleSheet.create({
     gap: 8,
     flexDirection: "row",
     alignItems: "center",
+    flexGrow: 1,
+  },
+  spacer: {
+    flex: 1,
+    minWidth: 8,
   },
   chip: {
     paddingHorizontal: 14,

@@ -2,61 +2,24 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
-import DayFilter from "../components/DayFilter";
+import { Platform, StyleSheet, View } from "react-native";
+import MapFilters from "../components/MapFilters";
+import { PubMarker } from "../components/PubMarker";
 import { useNearbyPubs } from "../hooks/usePubs";
 import { pubHasDealOnDay } from "../utils/dealDays";
 
 const NativeMapView = Platform.OS !== "web" ? require("react-native-maps").default : null;
 const NativeMarker = Platform.OS !== "web" ? require("react-native-maps").Marker : null;
 
-function PubMarker({ emoji, dealCount }: { emoji: string; dealCount: number }) {
-  return (
-    <View style={marker.container}>
-      <Text style={marker.emoji}>{emoji}</Text>
-      {dealCount > 0 && (
-        <View style={marker.badge}>
-          <Text style={marker.badgeText}>{dealCount}</Text>
-        </View>
-      )}
-    </View>
-  );
-}
+const DAY_TO_NUM: Record<string, number> = {
+  mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6,
+  st_patricks: 0, // 17 Mar 2026 is a Monday
+};
 
-const marker = StyleSheet.create({
-  container: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emoji: {
-    fontSize: 24,
-  },
-  badge: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#F59E0B",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: "#fff",
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#0D1B2A",
-  },
-});
-
-function WebMap({ pubs, center, selectedDay }: {
+function WebMap({ pubs, center, selectedDays }: {
   pubs: any[];
   center: [number, number];
-  selectedDay: number | null;
+  selectedDays: string[];
 }) {
   const [ready, setReady] = useState(false);
   const router = useRouter();
@@ -94,7 +57,7 @@ function WebMap({ pubs, center, selectedDay }: {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
       {pubs.map((pub: any) => {
-        if (selectedDay !== null && !pubHasDealOnDay(pub, selectedDay)) return null;
+        if (selectedDays.length > 0 && !selectedDays.some((d) => pubHasDealOnDay(pub, DAY_TO_NUM[d]))) return null;
         return (
           <Marker key={pub.id} position={[pub.lat, pub.lng]} icon={icon}>
             <Popup>
@@ -114,7 +77,9 @@ function WebMap({ pubs, center, selectedDay }: {
 export default function MapScreen() {
   const router = useRouter();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
+  const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -132,8 +97,15 @@ export default function MapScreen() {
   if (Platform.OS === "web") {
     return (
       <View style={styles.container}>
-        <DayFilter selected={selectedDay} onChange={setSelectedDay} />
-        <WebMap pubs={pubs ?? []} center={center} selectedDay={selectedDay} />
+        <MapFilters
+          selectedTypes={selectedTypes}
+          onTypesChange={setSelectedTypes}
+          selectedDays={selectedDays}
+          onDaysChange={setSelectedDays}
+          selectedTimes={selectedTimes}
+          onTimesChange={setSelectedTimes}
+        />
+        <WebMap pubs={pubs ?? []} center={center} selectedDays={selectedDays} />
       </View>
     );
   }
@@ -148,28 +120,43 @@ export default function MapScreen() {
   return (
     <LinearGradient colors={["#0D1B2A", "#1C3F6E"]} style={styles.gradient}>
       <View style={styles.container}>
-        <DayFilter selected={selectedDay} onChange={setSelectedDay} />
+        <MapFilters
+          selectedTypes={selectedTypes}
+          onTypesChange={setSelectedTypes}
+          selectedDays={selectedDays}
+          onDaysChange={setSelectedDays}
+          selectedTimes={selectedTimes}
+          onTimesChange={setSelectedTimes}
+        />
         {NativeMapView && (
           <NativeMapView style={styles.map} region={region} showsUserLocation>
-            {pubs?.map((pub: any) => {
-              const hasDeals = selectedDay === null || pubHasDealOnDay(pub, selectedDay);
-              const dealCount = pub.promotions?.length ?? 0;
-              return NativeMarker ? (
-                <NativeMarker
-                  key={pub.id}
-                  coordinate={{ latitude: pub.lat, longitude: pub.lng }}
-                  tracksViewChanges={false}
-                  anchor={{ x: 0.5, y: 0.5 }}
-                  opacity={hasDeals ? 1 : 0.25}
-                  onPress={() => router.push(`/pub/${pub.id}`)}
-                >
-                  <PubMarker
-                    emoji={pub.venue_emoji ?? "🍻"}
-                    dealCount={hasDeals ? dealCount : 0}
-                  />
-                </NativeMarker>
-              ) : null;
-            })}
+            {NativeMarker && [...(pubs ?? [])]
+              .sort((a, b) => {
+                const aActive = selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(a, DAY_TO_NUM[d]));
+                const bActive = selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(b, DAY_TO_NUM[d]));
+                return Number(aActive) - Number(bActive); // inactive first → active on top
+              })
+              .map((pub: any) => {
+                const hasDeals = selectedDays.length === 0
+                  || selectedDays.some((d) => pubHasDealOnDay(pub, DAY_TO_NUM[d]));
+                const dealCount = pub.promotions?.length ?? 0;
+                return (
+                  <NativeMarker
+                    key={pub.id}
+                    coordinate={{ latitude: pub.lat, longitude: pub.lng }}
+                    tracksViewChanges={false}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                    onPress={() => router.push(`/pub/${pub.id}`)}
+                  >
+                    <PubMarker
+                      emoji={pub.venue_emoji ?? "🍻"}
+                      dealCount={dealCount}
+                      variant="A"
+                      active={hasDeals}
+                    />
+                  </NativeMarker>
+                );
+              })}
           </NativeMapView>
         )}
       </View>
