@@ -55,7 +55,7 @@ export default function DashboardScreen() {
 
         {/* Widgets */}
         <HourlyWidget onPress={() => router.push("/hourly")} />
-        <MapWidget onPress={() => router.push("/map")} pubCount={pubCount || 4} />
+        <MapWidget onPress={() => router.push("/map")} pubCount={pubCount || 4} coords={coords} pubs={pubs ?? []} />
         <ForecastWidget onPress={() => router.push("/forecast")} />
 
         <View style={styles.footer} />
