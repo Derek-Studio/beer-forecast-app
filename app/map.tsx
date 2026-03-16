@@ -1,8 +1,8 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import MapFilters from "../components/MapFilters";
 import { PubMarker } from "../components/PubMarker";
 import { useNearbyPubs } from "../hooks/usePubs";
@@ -80,6 +80,8 @@ export default function MapScreen() {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+  const [locationLabel, setLocationLabel] = useState<string>("");
+  const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -93,6 +95,23 @@ export default function MapScreen() {
 
   const { data: pubs } = useNearbyPubs(coords?.lat ?? null, coords?.lng ?? null);
   const center: [number, number] = coords ? [coords.lat, coords.lng] : [51.5074, -0.1278];
+
+  async function updateLocationLabel(lat: number, lng: number, latDelta: number) {
+    const [result] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+    if (!result) return;
+    // Zoomed in: use district/neighbourhood; zoomed out: use city
+    const label = latDelta < 0.05
+      ? (result.district || result.subregion || result.city || "")
+      : (result.city || result.subregion || "");
+    setLocationLabel(label);
+  }
+
+  function handleRegionChangeComplete(r: { latitude: number; longitude: number; latitudeDelta: number }) {
+    if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
+    geocodeTimer.current = setTimeout(() => {
+      updateLocationLabel(r.latitude, r.longitude, r.latitudeDelta);
+    }, 400);
+  }
 
   if (Platform.OS === "web") {
     return (
@@ -129,7 +148,12 @@ export default function MapScreen() {
           onTimesChange={setSelectedTimes}
         />
         {NativeMapView && (
-          <NativeMapView style={styles.map} region={region} showsUserLocation>
+          <NativeMapView
+            style={styles.map}
+            region={region}
+            showsUserLocation
+            onRegionChangeComplete={handleRegionChangeComplete}
+          >
             {NativeMarker && [...(pubs ?? [])]
               .sort((a, b) => {
                 const aActive = selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(a, DAY_TO_NUM[d]));
@@ -159,6 +183,11 @@ export default function MapScreen() {
               })}
           </NativeMapView>
         )}
+        {locationLabel ? (
+          <View style={styles.locationPill} pointerEvents="none">
+            <Text style={styles.locationText}>{locationLabel}</Text>
+          </View>
+        ) : null}
       </View>
     </LinearGradient>
   );
@@ -168,4 +197,19 @@ const styles = StyleSheet.create({
   gradient: { flex: 1 },
   container: { flex: 1 },
   map: { flex: 1 },
+  locationPill: {
+    position: "absolute",
+    bottom: 24,
+    alignSelf: "center",
+    backgroundColor: "rgba(13, 27, 42, 0.75)",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  locationText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
 });
