@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.2)",
     marginHorizontal: 16,
     marginBottom: 12,
-    height: 180,
+    height: 240,
     overflow: "hidden",
     justifyContent: "space-between",
   },
