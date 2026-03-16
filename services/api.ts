@@ -6,6 +6,7 @@ export type Promotion = {
   days: string;
   time: string;
   source_url: string;
+  screenshot_url?: string;
 };
 
 export type PubSummary = {
