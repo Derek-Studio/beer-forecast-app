@@ -1,8 +1,8 @@
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
-import { useRouter } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import MapFilters from "../components/MapFilters";
 import { PubMarker } from "../components/PubMarker";
 import { useNearbyPubs } from "../hooks/usePubs";
@@ -76,6 +76,7 @@ function WebMap({ pubs, center, selectedDays }: {
 
 export default function MapScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
@@ -104,6 +105,7 @@ export default function MapScreen() {
       ? (result.district || result.subregion || result.city || "")
       : (result.city || result.subregion || "");
     setLocationLabel(label);
+    navigation.setOptions({ title: label ? `${label} Pubs` : "Nearby Pubs" });
   }
 
   function handleRegionChangeComplete(r: { latitude: number; longitude: number; latitudeDelta: number }) {
@@ -183,11 +185,6 @@ export default function MapScreen() {
               })}
           </NativeMapView>
         )}
-        {locationLabel ? (
-          <View style={styles.locationPill} pointerEvents="none">
-            <Text style={styles.locationText}>{locationLabel}</Text>
-          </View>
-        ) : null}
       </View>
     </LinearGradient>
   );
@@ -197,19 +194,4 @@ const styles = StyleSheet.create({
   gradient: { flex: 1 },
   container: { flex: 1 },
   map: { flex: 1 },
-  locationPill: {
-    position: "absolute",
-    bottom: 24,
-    alignSelf: "center",
-    backgroundColor: "rgba(13, 27, 42, 0.75)",
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  locationText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-    letterSpacing: 0.3,
-  },
 });
