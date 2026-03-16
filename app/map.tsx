@@ -161,7 +161,7 @@ export default function MapScreen() {
                   tracksViewChanges={false}
                   anchor={{ x: 0.5, y: 0.5 }}
                   opacity={hasDeals ? 1 : 0.25}
-                  onCalloutPress={() => router.push(`/pub/${pub.id}`)}
+                  onPress={() => router.push(`/pub/${pub.id}`)}
                 >
                   <PubMarker
                     emoji={pub.venue_emoji ?? "🍻"}
