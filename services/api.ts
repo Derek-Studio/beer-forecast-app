@@ -16,6 +16,7 @@ export type PubSummary = {
   address: string;
   distance_km: number;
   promotions: Promotion[] | null;
+  venue_emoji?: string;
 };
 
 export type PubDetail = PubSummary & {

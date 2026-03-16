@@ -1,18 +1,61 @@
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { PubSummary } from "../services/api";
 
 const MapView = Platform.OS !== "web" ? require("react-native-maps").default : null;
 const Marker = Platform.OS !== "web" ? require("react-native-maps").Marker : null;
-
-type Pub = { id: number; lat: number; lng: number; name: string };
 
 type Props = {
   onPress: () => void;
   pubCount: number;
   coords?: { lat: number; lng: number } | null;
-  pubs?: Pub[];
+  pubs?: PubSummary[];
 };
+
+function PubMarker({ pub }: { pub: PubSummary }) {
+  const dealCount = pub.promotions?.length ?? 0;
+  return (
+    <View style={marker.container}>
+      <Text style={marker.emoji}>{pub.venue_emoji ?? "🍻"}</Text>
+      {dealCount > 0 && (
+        <View style={marker.badge}>
+          <Text style={marker.badgeText}>{dealCount}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const marker = StyleSheet.create({
+  container: {
+    width: 34,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emoji: {
+    fontSize: 20,
+  },
+  badge: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: "#F59E0B",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#0D1B2A",
+  },
+  badgeText: {
+    fontSize: 8,
+    fontWeight: "700",
+    color: "#0D1B2A",
+  },
+});
 
 export default function MapWidget({ onPress, pubCount, coords, pubs }: Props) {
   const center = coords ?? { lat: 51.5074, lng: -0.1278 };
@@ -26,8 +69,7 @@ export default function MapWidget({ onPress, pubCount, coords, pubs }: Props) {
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      {/* Map background — native only */}
-      {MapView && (
+      {MapView ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <MapView
             style={StyleSheet.absoluteFill}
@@ -42,30 +84,28 @@ export default function MapWidget({ onPress, pubCount, coords, pubs }: Props) {
             showsPointsOfInterest={true}
             toolbarEnabled={false}
             moveOnMarkerPress={false}
-            mapType="standard"
           >
-            {pubs?.map((pub) => (
+            {pubs?.map((pub) =>
               Marker ? (
                 <Marker
                   key={pub.id}
                   coordinate={{ latitude: pub.lat, longitude: pub.lng }}
-                  title={pub.name}
-                />
+                  tracksViewChanges={false}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                >
+                  <PubMarker pub={pub} />
+                </Marker>
               ) : null
-            ))}
+            )}
           </MapView>
 
-          {/* Gradient overlay so text is readable */}
           <LinearGradient
             colors={["rgba(13,27,42,0.72)", "rgba(13,27,42,0.0)", "rgba(13,27,42,0.55)"]}
             locations={[0, 0.45, 1]}
             style={StyleSheet.absoluteFill}
           />
         </View>
-      )}
-
-      {/* Fallback background for web */}
-      {!MapView && (
+      ) : (
         <View style={[StyleSheet.absoluteFill, styles.webFallback]} />
       )}
 
@@ -75,7 +115,6 @@ export default function MapWidget({ onPress, pubCount, coords, pubs }: Props) {
         <Text style={styles.chevron}>›</Text>
       </View>
 
-      {/* Spacer — lets the map show through */}
       <View style={styles.spacer} />
 
       {/* Footer pill */}
