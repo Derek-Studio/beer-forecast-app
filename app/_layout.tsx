@@ -16,7 +16,7 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="hourly" options={{ title: "Hourly Forecast" }} />
         <Stack.Screen name="forecast" options={{ title: "14-Day Forecast" }} />
-        <Stack.Screen name="map" options={{ title: "Nearby Pubs" }} />
+        <Stack.Screen name="map" options={{ title: "Nearby Pubs", headerTitleAlign: "center" }} />
         <Stack.Screen name="pub/[id]" options={{ title: "" }} />
       </Stack>
     </QueryClientProvider>
