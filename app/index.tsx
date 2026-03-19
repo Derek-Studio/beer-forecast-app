@@ -2,7 +2,7 @@ import * as Location from "expo-location";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import ForecastWidget from "../components/ForecastWidget";
 import HourlyWidget from "../components/HourlyWidget";
 import MapWidget from "../components/MapWidget";
@@ -35,7 +35,7 @@ export default function DashboardScreen() {
 
   const { data: pubs } = useNearbyPubs(coords?.lat ?? null, coords?.lng ?? null);
   const pubCount = pubs?.length ?? 0;
-  const dealCount = pubs?.reduce((n, p) => n + (p.promotions?.length ?? 0), 0) ?? 0;
+  const dealCount = pubs?.reduce((n, p) => n + (p.deals?.length ?? 0) + (p.events?.length ?? 0), 0) ?? 0;
 
   return (
     <LinearGradient colors={["#0D1B2A", "#1C3F6E", "#0D1B2A"]} locations={[0, 0.5, 1]} style={styles.gradient}>
@@ -52,6 +52,13 @@ export default function DashboardScreen() {
           </Text>
           <Text style={styles.subline}>{SUMMARY.subline}</Text>
         </View>
+
+        {/* Emergency button */}
+        <TouchableOpacity style={styles.emergency} onPress={() => router.push("/beernado")} activeOpacity={0.85}>
+          <Text style={styles.emergencyEmoji}>🍺</Text>
+          <Text style={styles.emergencyText}>EMERGENCY</Text>
+          <Text style={styles.emergencySub}>Find nearest pub now</Text>
+        </TouchableOpacity>
 
         {/* Widgets */}
         <HourlyWidget onPress={() => router.push("/hourly")} />
@@ -107,4 +114,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   footer: { height: 40 },
+  emergency: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+    backgroundColor: "#dc2626",
+    borderRadius: 20,
+    paddingVertical: 20,
+    alignItems: "center",
+    shadowColor: "#dc2626",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  emergencyEmoji: { fontSize: 32, marginBottom: 4 },
+  emergencyText: { color: "#fff", fontSize: 20, fontWeight: "800", letterSpacing: 2 },
+  emergencySub: { color: "rgba(255,255,255,0.75)", fontSize: 13, marginTop: 2 },
 });
