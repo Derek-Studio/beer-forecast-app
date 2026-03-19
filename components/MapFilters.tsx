@@ -93,9 +93,13 @@ const TYPE_GROUPS: OptionGroup[] = [
     groupKey: "events",
     options: [
       { label: "Pub Quiz",         value: "pub_quiz" },
-      { label: "Karaoke",          value: "karaoke" },
       { label: "Live Music",       value: "live_music" },
+      { label: "Karaoke",          value: "karaoke" },
+      { label: "Comedy",           value: "comedy" },
       { label: "Sports Screening", value: "sports_screening" },
+      { label: "Bingo & Games",    value: "bingo_games" },
+      { label: "Themed Night",     value: "themed_night" },
+      { label: "Other",            value: "other" },
     ],
   },
 ];

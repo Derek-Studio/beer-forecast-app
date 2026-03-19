@@ -6,7 +6,60 @@ import { Platform, StyleSheet, View } from "react-native";
 import MapFilters from "../components/MapFilters";
 import { PubMarker } from "../components/PubMarker";
 import { useNearbyPubs } from "../hooks/usePubs";
+import { PubSummary } from "../services/api";
 import { pubHasDealOnDay } from "../utils/dealDays";
+
+const CATEGORY_MAP: Record<string, string[]> = {
+  happy_hour:       ["happy hour"],
+  free_drink:       ["free item"],
+  two_for_one:      ["2-for-1"],
+  discounted:       ["drink special", "discount", "meal deal", "loyalty offer"],
+  pub_quiz:         ["quiz night"],
+  live_music:       ["live music", "open mic", "DJ set"],
+  karaoke:          ["karaoke"],
+  comedy:           ["comedy night"],
+  sports_screening: ["sports screening"],
+  bingo_games:      ["bingo", "games night"],
+  themed_night:     ["themed night"],
+  other:            ["other"],
+};
+
+const TIME_RANGES: Record<string, [number, number]> = {
+  day_drinking:  [9,  17],
+  evening:       [17, 21],
+  late_drinking: [20, 23],
+  nightlife:     [22, 26],
+};
+
+function pubMatchesTypeFilter(pub: PubSummary, selectedTypes: string[]): boolean {
+  if (selectedTypes.length === 0) return true;
+  const categories = [
+    ...(pub.deals?.map(d => d.category) ?? []),
+    ...(pub.events?.map(e => e.category) ?? []),
+  ];
+  return selectedTypes.some(t =>
+    CATEGORY_MAP[t]?.some(c => categories.includes(c))
+  );
+}
+
+function pubMatchesTimeFilter(pub: PubSummary, selectedTimes: string[]): boolean {
+  if (selectedTimes.length === 0) return true;
+  const allSchedules = [
+    ...(pub.deals?.map(d => d.schedule) ?? []),
+    ...(pub.events?.map(e => e.schedule) ?? []),
+  ];
+  return selectedTimes.some(t => {
+    const [filterStart, filterEnd] = TIME_RANGES[t];
+    return allSchedules.some(s => {
+      if (!s) return false;
+      if (s.all_day || !s.time_open) return true;
+      const start = parseInt(s.time_open.split(":")[0]);
+      let end = s.time_close ? parseInt(s.time_close.split(":")[0]) : start + 2;
+      if (end <= start) end += 24; // midnight-crossing fix
+      return start < filterEnd && end > filterStart;
+    });
+  });
+}
 
 const NativeMapView = Platform.OS !== "web" ? require("react-native-maps").default : null;
 const NativeMarker = Platform.OS !== "web" ? require("react-native-maps").Marker : null;
@@ -16,10 +69,12 @@ const DAY_TO_NUM: Record<string, number> = {
   st_patricks: 0, // 17 Mar 2026 is a Monday
 };
 
-function WebMap({ pubs, center, selectedDays }: {
+function WebMap({ pubs, center, selectedDays, selectedTypes, selectedTimes }: {
   pubs: any[];
   center: [number, number];
   selectedDays: string[];
+  selectedTypes: string[];
+  selectedTimes: string[];
 }) {
   const [ready, setReady] = useState(false);
   const router = useRouter();
@@ -57,7 +112,10 @@ function WebMap({ pubs, center, selectedDays }: {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
       {pubs.map((pub: any) => {
-        if (selectedDays.length > 0 && !selectedDays.some((d) => pubHasDealOnDay(pub, DAY_TO_NUM[d]))) return null;
+        const dayOk = selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(pub, DAY_TO_NUM[d]));
+        const typeOk = pubMatchesTypeFilter(pub, selectedTypes);
+        const timeOk = pubMatchesTimeFilter(pub, selectedTimes);
+        if (!dayOk || !typeOk || !timeOk) return null;
         return (
           <Marker key={pub.id} position={[pub.lat, pub.lng]} icon={icon}>
             <Popup>
@@ -126,7 +184,7 @@ export default function MapScreen() {
           selectedTimes={selectedTimes}
           onTimesChange={setSelectedTimes}
         />
-        <WebMap pubs={pubs ?? []} center={center} selectedDays={selectedDays} />
+        <WebMap pubs={pubs ?? []} center={center} selectedDays={selectedDays} selectedTypes={selectedTypes} selectedTimes={selectedTimes} />
       </View>
     );
   }
@@ -158,14 +216,19 @@ export default function MapScreen() {
           >
             {NativeMarker && [...(pubs ?? [])]
               .sort((a, b) => {
-                const aActive = selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(a, DAY_TO_NUM[d]));
-                const bActive = selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(b, DAY_TO_NUM[d]));
+                const aActive = (selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(a, DAY_TO_NUM[d])))
+                  && pubMatchesTypeFilter(a, selectedTypes)
+                  && pubMatchesTimeFilter(a, selectedTimes);
+                const bActive = (selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(b, DAY_TO_NUM[d])))
+                  && pubMatchesTypeFilter(b, selectedTypes)
+                  && pubMatchesTimeFilter(b, selectedTimes);
                 return Number(aActive) - Number(bActive); // inactive first → active on top
               })
               .map((pub: any) => {
-                const hasDeals = selectedDays.length === 0
-                  || selectedDays.some((d) => pubHasDealOnDay(pub, DAY_TO_NUM[d]));
-                const dealCount = pub.promotions?.length ?? 0;
+                const hasDeals = (selectedDays.length === 0 || selectedDays.some((d) => pubHasDealOnDay(pub, DAY_TO_NUM[d])))
+                  && pubMatchesTypeFilter(pub, selectedTypes)
+                  && pubMatchesTimeFilter(pub, selectedTimes);
+                const dealCount = (pub.deals?.length ?? 0) + (pub.events?.length ?? 0);
                 return (
                   <NativeMarker
                     key={pub.id}
