@@ -27,9 +27,10 @@ function formatDays(days: string[]): string {
 }
 
 function formatTime(time_open: string, time_close: string): string {
-  if (!time_open) return "All day";
-  if (!time_close) return time_open;
-  return `${time_open} – ${time_close}`;
+  if (time_open && time_close) return `${time_open} – ${time_close}`;
+  if (time_open) return `from ${time_open}`;
+  if (time_close) return `until ${time_close}`;
+  return "All day";
 }
 
 export default function DealCard({ deal }: Props) {

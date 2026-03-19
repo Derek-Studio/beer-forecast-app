@@ -24,15 +24,21 @@ function formatSourceUrl(url: string): string {
 function formatSchedule(event: Event): string {
   const s = event.schedule;
   if (!s) return "";
+  const formatTimePart = (open: string, close: string): string | null => {
+    if (open && close) return `${open} – ${close}`;
+    if (open) return `from ${open}`;
+    if (close) return `until ${close}`;
+    return null;
+  };
   if (!s.recurring && s.date) {
     const d = new Date(s.date);
     const dateStr = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-    if (s.time_open) return `${dateStr} · ${s.time_open}${s.time_close ? " – " + s.time_close : ""}`;
-    return dateStr;
+    const timePart = formatTimePart(s.time_open, s.time_close);
+    return timePart ? `${dateStr} · ${timePart}` : dateStr;
   }
   const days = s.days.length === 0 ? "Daily" : s.days.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(", ");
-  const time = s.time_open ? `${s.time_open}${s.time_close ? " – " + s.time_close : ""}` : "All day";
-  return `${days} · ${time}`;
+  const timePart = formatTimePart(s.time_open, s.time_close) ?? "All day";
+  return `${days} · ${timePart}`;
 }
 
 export default function EventCard({ event }: Props) {

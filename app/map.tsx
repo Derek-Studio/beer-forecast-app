@@ -52,9 +52,9 @@ function pubMatchesTimeFilter(pub: PubSummary, selectedTimes: string[]): boolean
     const [filterStart, filterEnd] = TIME_RANGES[t];
     return allSchedules.some(s => {
       if (!s) return false;
-      if (s.all_day || !s.time_open) return true;
-      const start = parseInt(s.time_open.split(":")[0]);
-      let end = s.time_close ? parseInt(s.time_close.split(":")[0]) : start + 2;
+      if (s.all_day || (!s.time_open && !s.time_close)) return true;
+      const start = s.time_open ? parseInt(s.time_open.split(":")[0]) : 0;
+      let end = s.time_close ? parseInt(s.time_close.split(":")[0]) : 24;
       if (end <= start) end += 24; // midnight-crossing fix
       return start < filterEnd && end > filterStart;
     });
